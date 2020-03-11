@@ -11,33 +11,59 @@ const $messages = document.querySelector("#messages");
 //templates
 const messageTemplate = document.querySelector("#message-template").innerHTML;
 const locationTemplate = document.querySelector("#location-template").innerHTML;
+const sidebarTemplate = document.querySelector("#sidebar-template").innerHTML;
 
 //options
 const { username, room } = Qs.parse(location.search, {
   ignoreQueryPrefix: true
 });
-console.log(
-  "qs parse",
-  Qs.parse(location.search, {
-    ignorQueryPrefix: true
-  })
-);
+
+const autoscroll = () => {
+  const $newMessage = $messages.lastElementChild;
+
+  const newMessageStyles = getComputedStyle($newMessage);
+  const newMessageMargin = parseInt(newMessageStyles.marginBottom);
+  const newMessageHeight = $newMessage.offsetHeight + newMessageMargin;
+
+  const visibleHeight = $messages.offsetHeight;
+
+  const containerHeight = $messages.scrollHeight;
+
+  const scrollOffset = $messages.scrollTop + visibleHeight;
+
+  if (containerHeight - newMessageHeight <= scrollOffset) {
+    $messages.scrollTop = $messages.scrollHeight;
+  }
+};
+
 socket.on("message", message => {
   console.log(message);
   const html = Mustache.render(messageTemplate, {
+    username: message.username,
     message: message.text,
     createdAt: moment(message.createdAt).format("hh:mm:ss a")
   });
   $messages.insertAdjacentHTML("beforeend", html);
+  autoscroll();
 });
 
 socket.on("locationMessage", url => {
   console.log(url);
   const html = Mustache.render(locationTemplate, {
+    username: url.username,
     url: url.text,
     createdAt: moment(url.createdAt).format("hh:mm:ss a")
   });
   $messages.insertAdjacentHTML("beforeend", html);
+  autoscroll();
+});
+
+socket.on("roomData", ({ room, users }) => {
+  const html = Mustache.render(sidebarTemplate, {
+    room,
+    users
+  });
+  document.querySelector("#sidebar").innerHTML = html;
 });
 
 $chatForm.addEventListener("submit", e => {
@@ -76,4 +102,7 @@ $sendLocationButton.addEventListener("click", e => {
   });
 });
 
-socket.emit("join", { username, room });
+socket.emit("join", { username, room }, error => {
+  alert(error);
+  location.href = "/";
+});
